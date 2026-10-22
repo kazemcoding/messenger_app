@@ -17,7 +17,7 @@ body {
 }
 
 .container {
-    background: linear-gradient(135deg, #f9f9becf 0%,#a2beffcd  100%);
+    background: linear-gradient(135deg, #f9f9becc 0%,#a2beffd2  100%);
     border-radius: 39px;
     border: 3px;
     border-color: #c8dff7;
@@ -910,7 +910,7 @@ body.dark-mode {
 }
 
 body.dark-mode .container {
-    background: linear-gradient(135deg, #5f4971 0%,#131b52  100%);
+    background: linear-gradient(135deg, #3f2653 0%,#111949  100%);
     color: #e0e0e0;
 }
 
@@ -973,6 +973,11 @@ body.dark-mode .attach-btn {
 body.dark-mode .notification {
     background: #2a2a3e;
     color: #e0e0e0;
+}
+
+body.dark-mode .tab {
+    background: rgb(235, 235, 235);
+    color: rgb(1, 1, 1);
 }
 
 body.dark-mode .tab.active {
