@@ -59,19 +59,20 @@ echo.
 :: ============================================================
 echo [3/5] Committing changes...
 
-:: Generate timestamp for commit message
-for /f "tokens=2 delims==" %%I in ('wmic os get localdatetime /value') do set datetime=%%I
-set COMMIT_MSG=Auto update: !datetime:~0,4!-!datetime:~4,2!-!datetime:~6,2! !datetime:~8,2!:!datetime:~10,2!
+:: Generate timestamp using PowerShell instead of wmic
+for /f "delims=" %%a in ('powershell -NoProfile -Command "Get-Date -Format 'yyyy-MM-dd_HH-mm'"') do set COMMIT_MSG=%%a
 
-git commit -m "!COMMIT_MSG!"
+git commit -m "Auto update: %COMMIT_MSG%"
 if errorlevel 1 (
-    echo WARNING: Nothing to commit (maybe no changes?)
     echo.
-    pause
-    exit /b 0
+    echo WARNING: Nothing to commit. The working tree is clean.
+    echo.
+    goto :push_only
 )
 echo OK: Changes committed
 echo.
+
+:push_only
 
 :: ============================================================
 :: STEP 5: Pull from remote (to avoid conflicts)
