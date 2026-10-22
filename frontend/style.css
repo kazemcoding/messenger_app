@@ -976,8 +976,8 @@ body.dark-mode .notification {
 }
 
 body.dark-mode .tab {
-    background: rgb(235, 235, 235);
-    color: rgb(1, 1, 1);
+    background: rgb(20, 1, 75);
+    color: rgb(252, 252, 252);
 }
 
 body.dark-mode .tab.active {
