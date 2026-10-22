@@ -7,7 +7,7 @@
 
 body {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, #a2beff 0%, #f9f9be 100%);
     height: 100vh;
     display: flex;
     justify-content: center;
@@ -17,12 +17,14 @@ body {
 }
 
 .container {
-    background: white;
-    border-radius: 0px;
+    background: linear-gradient(135deg, #f9f9becf 0%,#a2beffcd  100%);
+    border-radius: 39px;
+    border: 3px;
+    border-color: #c8dff7;
     padding: 40px;
-    width: 75%;
+    width: 60%;
     max-width: 900px;
-    max-height: 95vh;
+    max-height: 100vb;
     box-shadow: 0 0px 70px rgba(0, 0, 0, 0.35);
     overflow-y: auto;
     transition: background 0.3s, color 0.3s;
@@ -54,11 +56,13 @@ input[type="email"],
 input[type="password"] {
     width: 100%;
     padding: 14px 18px;
-    border: 2px solid #e0e0e0;
-    border-radius: 12px;
+    border: 3px solid #ffffff;
+    border-radius: 16px;
     font-size: 16px;
     box-sizing: border-box;
     transition: border-color 0.3s;
+    background-color: #ebf5ff;
+    color: #242323;
 }
 
 input:focus {
@@ -68,8 +72,8 @@ input:focus {
 
 button {
     padding: 14px;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
+    background: linear-gradient(135deg,  #a2beff 0%,#f9f9be  100%);
+    color: rgb(0, 0, 0);
     border: none;
     border-radius: 12px;
     font-size: 17px;
@@ -228,8 +232,8 @@ button:hover {
 }
 
 .tab.active {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
+    background: linear-gradient(135deg, #f9f9be 0%,#a2beff  100%);
+    color: rgb(2, 2, 2);
 }
 
 .tab:hover {
@@ -249,7 +253,7 @@ button:hover {
 /* ============ لیست کاربران ============ */
 .users-list {
     margin-bottom: 15px;
-    max-height: 280px;
+    max-height: 130px;
     overflow-y: auto;
     border: 1px solid #e0e0e0;
     border-radius: 12px;
@@ -319,14 +323,14 @@ button:hover {
 /* ============ کانتینر چت ============ */
 .chat-container {
     flex: 1;
-    max-height: 600px;
-    min-height: 450px;
+    max-height: 550px;
+    min-height: 410px;
     overflow-y: auto;
     margin-bottom: 15px;
     border: 1px solid #e0e0e0;
-    border-radius: 12px;
+    border-radius: 30px;
     padding: 20px;
-    background: #fafafa;
+    background: linear-gradient(135deg, #e4e4b1 0%,#97b0ea  100%);
     position: relative;
 }
 
@@ -352,8 +356,8 @@ button:hover {
 }
 
 .chat-message.sent {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
+    background: linear-gradient(135deg, #f9f9be 0%,#a2beff  100%);
+    color: rgb(4, 4, 4);
     align-self: flex-end;
     border-bottom-left-radius: 6px;
     margin-left: auto;
@@ -902,11 +906,11 @@ button:hover {
 
 /* ============ تم تاریک ============ */
 body.dark-mode {
-    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+    background: linear-gradient(135deg, #131b52 0%,#5f4971  100%);
 }
 
 body.dark-mode .container {
-    background: #1e1e2e;
+    background: linear-gradient(135deg, #5f4971 0%,#131b52  100%);
     color: #e0e0e0;
 }
 
@@ -916,8 +920,14 @@ body.dark-mode h2 {
 
 body.dark-mode input {
     background: #2a2a3e;
-    border-color: #3a3a4e;
-    color: #e0e0e0;
+    border-color: #242431;
+    background-color: #ebf5ff;
+    color: #000000;
+}
+
+body.dark-mode button {
+    background: linear-gradient(135deg, #5f4971 0%,#131b52  100%);
+    color: rgb(255, 255, 255);    
 }
 
 body.dark-mode .form-group label {
@@ -941,7 +951,7 @@ body.dark-mode .user-item.active {
 }
 
 body.dark-mode .chat-container {
-    background: #2a2a3e;
+    background: linear-gradient(135deg, #232a51 0%,#251631  100%);
     border-color: #3a3a4e;
 }
 
@@ -965,10 +975,11 @@ body.dark-mode .notification {
     color: #e0e0e0;
 }
 
-body.dark-mode .tab {
-    background: #2a2a3e;
-    color: #aaa;
+body.dark-mode .tab.active {
+    background: linear-gradient(135deg, #5f4971 0%,#131b52  100%);
+    color: rgb(252, 252, 252);
 }
+
 
 body.dark-mode .edit-input {
     background: #2a2a3e;
@@ -1012,8 +1023,9 @@ body.dark-mode .message-reply {
     background: rgba(0, 0, 0, 0.3);
 }
 
-body.dark-mode .chat-message.sent .message-reply {
-    background: rgba(255, 255, 255, 0.1);
+body.dark-mode .chat-message.sent {
+    background: linear-gradient(135deg, #6f4890 0%,#233291  100%);
+    color: whitesmoke;
 }
 
 body.dark-mode .profile-username {
