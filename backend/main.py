@@ -15,7 +15,6 @@ import json
 import traceback
 import shutil
 import uuid
-
 from database import (
     SessionLocal, User, Message, Contact, ContactRequest, 
     ContactRequestAttempt, Group, GroupMember

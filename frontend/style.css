@@ -17,7 +17,7 @@ body {
 }
 
 .container {
-    background: linear-gradient(135deg, #f9f9becc 0%,#a2beffd2  100%);
+    background: linear-gradient(135deg, #f9f9be 0%, #a2beff 100%);
     border-radius: 39px;
     border: 3px;
     border-color: #c8dff7;
@@ -72,7 +72,7 @@ input:focus {
 
 button {
     padding: 14px;
-    background: linear-gradient(135deg,  #a2beff 0%,#f9f9be  100%);
+    background: linear-gradient(135deg, #a2beff 0%, #f9f9be 100%);
     color: rgb(0, 0, 0);
     border: none;
     border-radius: 12px;
@@ -232,7 +232,7 @@ button:hover {
 }
 
 .tab.active {
-    background: linear-gradient(135deg, #f9f9be 0%,#a2beff  100%);
+    background: linear-gradient(135deg, #a2beff 0%, #f9f9be 100%);
     color: rgb(2, 2, 2);
 }
 
@@ -330,7 +330,7 @@ button:hover {
     border: 1px solid #e0e0e0;
     border-radius: 30px;
     padding: 20px;
-    background: linear-gradient(135deg, #e4e4b1 0%,#97b0ea  100%);
+    background: linear-gradient(135deg, #a2beff 0%, #f9f9be 100%);
     position: relative;
 }
 
@@ -356,7 +356,7 @@ button:hover {
 }
 
 .chat-message.sent {
-    background: linear-gradient(135deg, #f9f9be 0%,#a2beff  100%);
+    background: linear-gradient(135deg, #a2beff 0%, #f9f9be 100%);
     color: rgb(4, 4, 4);
     align-self: flex-end;
     border-bottom-left-radius: 6px;
@@ -926,7 +926,7 @@ body.dark-mode input {
 }
 
 body.dark-mode button {
-    background: linear-gradient(135deg, #5f4971 0%,#131b52  100%);
+    background: linear-gradient(135deg, #131b52 0%,#5f4971  100%);
     color: rgb(255, 255, 255);    
 }
 

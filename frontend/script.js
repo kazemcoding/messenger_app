@@ -129,7 +129,7 @@ async function login() {
             loadContacts();
             loadGroups();
             loadPendingRequests();
-            loadAllUsers();  // ⬅️ اضافه کن
+            loadAllUsers();
         } else {
             showMessage(msg, '❌ ' + (data.detail || 'نام کاربری یا رمز اشتباه'), 'error');
         }
