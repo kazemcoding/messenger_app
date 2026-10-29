@@ -38,6 +38,26 @@ app = FastAPI(title="پیام‌رسان تحت وب", version="4.0.0")
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
+# ============ Security Headers ============
+
+@app.middleware("http")
+async def add_security_headers(request: Request, call_next):
+    response = await call_next(request)
+    # جلوگیری از حدس زدن نوع فایل
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    # جلوگیری از کلیک‌جکینگ (سایت تو داخل iframe سایت دیگه باز نشه)
+    response.headers["X-Frame-Options"] = "DENY"
+    # اجبار به استفاده از HTTPS (HSTS)
+    response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+    # پالیسی ارجاع‌دهنده
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    # پالیسی دسترسی‌ها (دوربین، میکروفون و...)
+    response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
+    # پالیسی امنیتی محتوا (CSP) - این یکی باید دقیق تنظیم بشه
+    response.headers["Content-Security-Policy"] = "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:;"
+    # مخفی کردن نام سرور
+    response.headers["Server"] = "WebServer"
+    return response
 # ============ CORS ============
 app.add_middleware(
     CORSMiddleware,
@@ -48,6 +68,7 @@ app.add_middleware(
         "https://www.message-box.ir",
         "https://desktop-1ebo8os.taile7482d.ts.net",
         "http://desktop-1ebo8os.taile7482d.ts.net",
+
     ],
     allow_credentials=True,
     allow_methods=["*"],
@@ -62,7 +83,6 @@ os.makedirs(uploads_path, exist_ok=True)
 
 print(f"📁 frontend: {frontend_path}")
 print(f"📁 uploads: {uploads_path}")
-
 if os.path.exists(frontend_path):
     app.mount("/static", StaticFiles(directory=frontend_path), name="static")
     print("✅ frontend found")
@@ -105,6 +125,7 @@ def user_to_dict(user: User) -> dict:
     }
 
 
+
 def message_to_dict(msg: Message, db: Session = None) -> dict:
     result = {
         "id": msg.id,
@@ -136,8 +157,8 @@ def message_to_dict(msg: Message, db: Session = None) -> dict:
                     "sender_username": reply_sender.username if reply_sender else "Unknown",
                 }
 
-    return result
 
+    return result
 
 async def send_ws(user_id: int, data: dict):
     try:
