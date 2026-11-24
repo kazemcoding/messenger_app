@@ -92,20 +92,34 @@ async def get_file(filename: str, token: str = None, db: Session = Depends(get_d
     try:
         if not token:
             raise HTTPException(status_code=401, detail="توکن لازم است")
-        
+
         payload = decode_token(token)
         if not payload:
             raise HTTPException(status_code=401, detail="توکن نامعتبر")
-        
+
         username = payload.get("sub")
         user = db.query(User).filter(User.username == username).first()
         if not user:
             raise HTTPException(status_code=401, detail="کاربر پیدا نشد")
-        
+
+        # ✅ بررسی اینکه فایل متعلق به پیامی است که کاربر در آن دخیل است
+        file_url = f"/uploads/{filename}"
+        related_msg = db.query(Message).filter(Message.file_url == file_url).first()
+        if related_msg:
+            allowed = (related_msg.sender_id == user.id or related_msg.receiver_id == user.id)
+            if related_msg.group_id:
+                is_member = db.query(GroupMember).filter(
+                    GroupMember.group_id == related_msg.group_id,
+                    GroupMember.user_id == user.id
+                ).first()
+                allowed = allowed or bool(is_member)
+            if not allowed:
+                raise HTTPException(status_code=403, detail="اجازه دسترسی به این فایل را ندارید")
+
         filepath = os.path.join(uploads_path, filename)
         if not os.path.exists(filepath):
             raise HTTPException(status_code=404, detail="فایل پیدا نشد")
-        
+
         return FileResponse(filepath)
     except HTTPException:
         raise
@@ -204,10 +218,41 @@ def register(request: Request, user: UserCreate, db: Session = Depends(get_db)):
         return user_to_dict(db_user)
     except HTTPException:
         raise
-    except Exception as e:
+    except Exception:
         traceback.print_exc()
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="خطای داخلی سرور")
 
+
+@app.post("/api/login")
+@limiter.limit("20/minute")
+def login(request: Request, user: UserLogin, db: Session = Depends(get_db)):
+    try:
+        db_user = authenticate_user(db, user.username, user.password)
+        if not db_user:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="نام کاربری یا رمز عبور اشتباه است"
+            )
+
+        db_user.is_online = True
+        db_user.last_seen = datetime.now(timezone.utc)
+        db.commit()
+
+        token = create_access_token(
+            data={"sub": user.username},
+            expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+        )
+        return {
+            "access_token": token,
+            "token_type": "bearer",
+            "user_id": db_user.id,
+            "username": db_user.username,
+        }
+    except HTTPException:
+        raise
+    except Exception:
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail="خطای داخلی سرور")
 
 # ============ ورود ============
 @app.post("/api/login")
@@ -396,6 +441,15 @@ async def request_contact(
     if not target:
         raise HTTPException(status_code=404, detail="کاربر پیدا نشد")
 
+    # ✅ بررسی سقف پاسخ‌های رد شده
+    rejected_count = db.query(ContactRequestAttempt).filter(
+        ContactRequestAttempt.user_id == user_id,      # کاربر هدف
+        ContactRequestAttempt.target_user_id == current_user.id,  # نسبت به من
+        ContactRequestAttempt.answer == "rejected"
+    ).count()
+    if rejected_count >= 3:
+        raise HTTPException(status_code=400, detail="این کاربر سقف رد درخواست شما را پر کرده است")
+
     existing = db.query(ContactRequest).filter(
         ContactRequest.from_user_id == current_user.id,
         ContactRequest.to_user_id == user_id,
@@ -422,7 +476,6 @@ async def request_contact(
 
     return {"message": "درخواست ارسال شد"}
 
-
 # ============ قبول درخواست ============
 @app.post("/api/contacts/accept/{request_id}")
 async def accept_contact(
@@ -443,6 +496,14 @@ async def accept_contact(
 
     db.add(Contact(user_id=current_user.id, contact_id=req.from_user_id))
     db.add(Contact(user_id=req.from_user_id, contact_id=current_user.id))
+
+    # ✅ ثبت پاسخ "قبول" در سابقه پاسخ‌ها
+    db.add(ContactRequestAttempt(
+        user_id=current_user.id,
+        target_user_id=req.from_user_id,
+        answer="accepted"
+    ))
+
     db.commit()
 
     await send_ws(req.from_user_id, {
@@ -456,6 +517,33 @@ async def accept_contact(
 
     return {"message": "قبول شد"}
 
+
+@app.post("/api/contacts/reject/{request_id}")
+def reject_contact(
+    request_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    req = db.query(ContactRequest).filter(
+        ContactRequest.id == request_id,
+        ContactRequest.to_user_id == current_user.id,
+        ContactRequest.status == "pending"
+    ).first()
+
+    if not req:
+        raise HTTPException(status_code=404, detail="درخواست پیدا نشد")
+
+    req.status = "rejected"
+
+    # ✅ ثبت پاسخ "رد" در سابقه پاسخ‌ها
+    db.add(ContactRequestAttempt(
+        user_id=current_user.id,
+        target_user_id=req.from_user_id,
+        answer="rejected"
+    ))
+
+    db.commit()
+    return {"message": "رد شد"}
 
 # ============ رد درخواست ============
 @app.post("/api/contacts/reject/{request_id}")
@@ -515,6 +603,14 @@ async def send_message(
             if not receiver:
                 raise HTTPException(status_code=404, detail="گیرنده پیدا نشد")
 
+            # ✅ بررسی مخاطب بودن (برای پیام خصوصی)
+            is_contact = db.query(Contact).filter(
+                Contact.user_id == current_user.id,
+                Contact.contact_id == message.receiver_id
+            ).first()
+            if not is_contact:
+                raise HTTPException(status_code=403, detail="این کاربر مخاطب شما نیست")
+
         if message.group_id:
             group = db.query(Group).filter(Group.id == message.group_id).first()
             if not group:
@@ -563,8 +659,7 @@ async def send_message(
         raise
     except Exception as e:
         traceback.print_exc()
-        raise HTTPException(status_code=500, detail=str(e))
-
+        raise HTTPException(status_code=500, detail="خطای داخلی سرور")
 
 # ============ دریافت پیام‌های خصوصی ============
 @app.get("/api/messages/{user_id}")
@@ -573,6 +668,14 @@ def get_messages(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
+    # ✅ بررسی مخاطب بودن (اختیاری اما توصیه‌شده)
+    is_contact = db.query(Contact).filter(
+        Contact.user_id == current_user.id,
+        Contact.contact_id == user_id
+    ).first()
+    if not is_contact:
+        raise HTTPException(status_code=403, detail="این کاربر مخاطب شما نیست")
+
     messages = db.query(Message).filter(
         Message.group_id == None,
         (
@@ -590,7 +693,6 @@ def get_messages(
         db.commit()
 
     return [message_to_dict(m, db) for m in messages]
-
 
 # ============ ویرایش پیام ============
 @app.put("/api/messages/{message_id}")
@@ -644,6 +746,7 @@ async def delete_message(
 
     msg.is_deleted = True
     msg.content = ""
+    msg.file_url = None  # ✅ پاک کردن ارجاع به فایل
     db.commit()
     db.refresh(msg)
 
@@ -661,8 +764,6 @@ async def delete_message(
     await send_ws(current_user.id, data)
 
     return result
-
-
 # ============ آپلود فایل ============
 @app.post("/api/upload")
 @limiter.limit("20/hour")
@@ -672,15 +773,21 @@ async def upload_file(
     current_user: User = Depends(get_current_user),
 ):
     try:
-        # محدودیت حجم فایل (۱۰ مگابایت)
-        MAX_SIZE = 10 * 1024 * 1024
+        # ✅ بررسی پسوند مجاز
+        ext = os.path.splitext(file.filename or "")[1].lower()
+        if ext not in ALLOWED_UPLOAD_EXTENSIONS:
+            raise HTTPException(
+                status_code=400,
+                detail=f"پسوند {ext} مجاز نیست. پسوندهای مجاز: {', '.join(sorted(ALLOWED_UPLOAD_EXTENSIONS))}"
+            )
+
+        # محدودیت حجم فایل
         file.file.seek(0, 2)
         size = file.file.tell()
         file.file.seek(0)
-        if size > MAX_SIZE:
+        if size > MAX_UPLOAD_SIZE:
             raise HTTPException(status_code=413, detail="فایل بزرگ‌تر از ۱۰ مگابایت")
 
-        ext = os.path.splitext(file.filename)[1]
         filename = f"{uuid.uuid4()}{ext}"
         filepath = os.path.join(uploads_path, filename)
 
@@ -696,9 +803,7 @@ async def upload_file(
         raise
     except Exception as e:
         traceback.print_exc()
-        raise HTTPException(status_code=500, detail=str(e))
-
-
+        raise HTTPException(status_code=500, detail="خطای داخلی سرور")
 # ============ گروه‌ها ============
 @app.post("/api/groups")
 async def create_group(
@@ -914,6 +1019,24 @@ async def websocket_endpoint(websocket: WebSocket, token: str = None):
     print(f"🔌 User {user_id} ({username}) connected via WS")
 
     db = SessionLocal()
+
+    async def mark_offline():
+        """به‌روزرسانی وضعیت آفلاین و اطلاع‌رسانی - در همه مسیرهای خطا فراخوانی می‌شود"""
+        db2 = SessionLocal()
+        try:
+            u = db2.query(User).filter(User.id == user_id).first()
+            if u:
+                u.is_online = False
+                u.last_seen = datetime.now(timezone.utc)
+                db2.commit()
+            await manager.broadcast(json.dumps({
+                "type": "user_offline",
+                "user_id": user_id,
+                "username": username,
+            }, ensure_ascii=False))
+        finally:
+            db2.close()
+
     try:
         u = db.query(User).filter(User.id == user_id).first()
         if u:
@@ -1013,31 +1136,17 @@ async def websocket_endpoint(websocket: WebSocket, token: str = None):
                 pass
 
     except WebSocketDisconnect:
-        manager.disconnect(user_id)
+        manager.disconnect(user_id, websocket=websocket)
         print(f"🔌 User {user_id} disconnected")
-
-        db2 = SessionLocal()
-        try:
-            u = db2.query(User).filter(User.id == user_id).first()
-            if u:
-                u.is_online = False
-                u.last_seen = datetime.now(timezone.utc)
-                db2.commit()
-
-            await manager.broadcast(json.dumps({
-                "type": "user_offline",
-                "user_id": user_id,
-                "username": username,
-            }, ensure_ascii=False))
-        finally:
-            db2.close()
+        await mark_offline()
     except Exception as e:
         print(f"❌ WS error: {e}")
         traceback.print_exc()
-        manager.disconnect(user_id)
+        manager.disconnect(user_id, websocket=websocket)
+        # ✅ در مسیر خطای عمومی هم وضعیت آفلاین به‌روزرسانی شود
+        await mark_offline()
     finally:
         db.close()
-
 
 if __name__ == "__main__":
     import uvicorn
