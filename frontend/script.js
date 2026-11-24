@@ -1,4 +1,3 @@
-// ============ تنظیمات ============
 const API_BASE = window.location.origin;
 
 let currentUser = null;

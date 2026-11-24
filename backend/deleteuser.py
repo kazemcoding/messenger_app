@@ -12,15 +12,10 @@ else:
     
     if confirm == 'YES':
         user_id = user.id
-        # 1. Delete messages
         db.query(Message).filter((Message.sender_id == user_id) | (Message.receiver_id == user_id)).delete(synchronize_session=False)
-        # 2. Delete contacts
         db.query(Contact).filter((Contact.user_id == user_id) | (Contact.contact_id == user_id)).delete(synchronize_session=False)
-        # 3. Delete contact requests
         db.query(ContactRequest).filter((ContactRequest.from_user_id == user_id) | (ContactRequest.to_user_id == user_id)).delete(synchronize_session=False)
-        # 4. Remove from groups
         db.query(GroupMember).filter(GroupMember.user_id == user_id).delete(synchronize_session=False)
-        # 5. Delete user
         db.delete(user)
         db.commit()
         print(f'✅ User {username} and all associated data deleted!')

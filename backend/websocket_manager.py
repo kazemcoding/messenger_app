@@ -14,7 +14,6 @@ class ConnectionManager:
                 await old.close()
             except Exception:
                 pass
-            # حذف صریح کلید قدیمی قبل از جایگزینی
             self.active_connections.pop(user_id, None)
         self.active_connections[user_id] = websocket
         print(f"✅ User {user_id} connected. Total: {len(self.active_connections)}")
@@ -28,7 +27,6 @@ class ConnectionManager:
         if current is None:
             return
         if websocket is not None and current is not websocket:
-            # اتصال فعلی با اتصالی که خطا داده فرق دارد؛ دست نزن
             return
         del self.active_connections[user_id]
         print(f"❌ User {user_id} disconnected. Total: {len(self.active_connections)}")
@@ -48,7 +46,6 @@ class ConnectionManager:
             return True
         except Exception as e:
             print(f"❌ Error sending to {user_id}: {e}")
-            # فقط اگر همان اتصال خطادار هنوز فعال است حذف کن
             self.disconnect(user_id, websocket=ws)
             return False
 

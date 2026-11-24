@@ -43,19 +43,12 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 @app.middleware("http")
 async def add_security_headers(request: Request, call_next):
     response = await call_next(request)
-    # جلوگیری از حدس زدن نوع فایل
     response.headers["X-Content-Type-Options"] = "nosniff"
-    # جلوگیری از کلیک‌جکینگ (سایت تو داخل iframe سایت دیگه باز نشه)
     response.headers["X-Frame-Options"] = "DENY"
-    # اجبار به استفاده از HTTPS (HSTS)
     response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
-    # پالیسی ارجاع‌دهنده
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
-    # پالیسی دسترسی‌ها (دوربین، میکروفون و...)
     response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
-    # پالیسی امنیتی محتوا (CSP) - این یکی باید دقیق تنظیم بشه
     response.headers["Content-Security-Policy"] = "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:;"
-    # مخفی کردن نام سرور
     response.headers["Server"] = "WebServer"
     return response
 # ============ CORS ============
@@ -102,7 +95,6 @@ async def get_file(filename: str, token: str = None, db: Session = Depends(get_d
         if not user:
             raise HTTPException(status_code=401, detail="کاربر پیدا نشد")
 
-        # ✅ بررسی اینکه فایل متعلق به پیامی است که کاربر در آن دخیل است
         file_url = f"/uploads/{filename}"
         related_msg = db.query(Message).filter(Message.file_url == file_url).first()
         if related_msg:
@@ -309,7 +301,6 @@ def get_users(current_user: User = Depends(get_current_user), db: Session = Depe
 # ============ لیست همه کاربران (برای تب «همه کاربران») ============
 @app.get("/api/users/all")
 def get_all_users(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    """همه کاربران به‌جز خودم"""
     users = db.query(User).filter(User.id != current_user.id).all()
     return [user_to_dict(u) for u in users]
 
@@ -321,7 +312,6 @@ def get_contact_attempts(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """چند بار کاربر به درخواست این کاربر جواب داده"""
     attempts = db.query(ContactRequestAttempt).filter(
         ContactRequestAttempt.user_id == current_user.id,
         ContactRequestAttempt.target_user_id == target_user_id
@@ -344,7 +334,7 @@ def get_contact_attempts(
 @app.post("/api/contact-attempts/{target_user_id}")
 def record_contact_attempt(
     target_user_id: int,
-    answer: str,  # "accepted" یا "rejected"
+    answer: str,  
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
@@ -352,7 +342,6 @@ def record_contact_attempt(
     if answer not in ["accepted", "rejected"]:
         raise HTTPException(status_code=400, detail="جواب نامعتبر")
     
-    # چک کن قبلاً ۳ بار جواب نداده
     existing_count = db.query(ContactRequestAttempt).filter(
         ContactRequestAttempt.user_id == current_user.id,
         ContactRequestAttempt.target_user_id == target_user_id
@@ -361,7 +350,6 @@ def record_contact_attempt(
     if existing_count >= 3:
         raise HTTPException(status_code=400, detail="سقف جواب‌ها پر شده")
     
-    # ثبت
     attempt = ContactRequestAttempt(
         user_id=current_user.id,
         target_user_id=target_user_id,
@@ -441,10 +429,9 @@ async def request_contact(
     if not target:
         raise HTTPException(status_code=404, detail="کاربر پیدا نشد")
 
-    # ✅ بررسی سقف پاسخ‌های رد شده
     rejected_count = db.query(ContactRequestAttempt).filter(
-        ContactRequestAttempt.user_id == user_id,      # کاربر هدف
-        ContactRequestAttempt.target_user_id == current_user.id,  # نسبت به من
+        ContactRequestAttempt.user_id == user_id,      
+        ContactRequestAttempt.target_user_id == current_user.id,  
         ContactRequestAttempt.answer == "rejected"
     ).count()
     if rejected_count >= 3:
@@ -476,7 +463,6 @@ async def request_contact(
 
     return {"message": "درخواست ارسال شد"}
 
-# ============ قبول درخواست ============
 @app.post("/api/contacts/accept/{request_id}")
 async def accept_contact(
     request_id: int,
@@ -497,7 +483,6 @@ async def accept_contact(
     db.add(Contact(user_id=current_user.id, contact_id=req.from_user_id))
     db.add(Contact(user_id=req.from_user_id, contact_id=current_user.id))
 
-    # ✅ ثبت پاسخ "قبول" در سابقه پاسخ‌ها
     db.add(ContactRequestAttempt(
         user_id=current_user.id,
         target_user_id=req.from_user_id,
@@ -535,7 +520,6 @@ def reject_contact(
 
     req.status = "rejected"
 
-    # ✅ ثبت پاسخ "رد" در سابقه پاسخ‌ها
     db.add(ContactRequestAttempt(
         user_id=current_user.id,
         target_user_id=req.from_user_id,
@@ -603,7 +587,6 @@ async def send_message(
             if not receiver:
                 raise HTTPException(status_code=404, detail="گیرنده پیدا نشد")
 
-            # ✅ بررسی مخاطب بودن (برای پیام خصوصی)
             is_contact = db.query(Contact).filter(
                 Contact.user_id == current_user.id,
                 Contact.contact_id == message.receiver_id
@@ -668,7 +651,6 @@ def get_messages(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    # ✅ بررسی مخاطب بودن (اختیاری اما توصیه‌شده)
     is_contact = db.query(Contact).filter(
         Contact.user_id == current_user.id,
         Contact.contact_id == user_id
@@ -746,7 +728,7 @@ async def delete_message(
 
     msg.is_deleted = True
     msg.content = ""
-    msg.file_url = None  # ✅ پاک کردن ارجاع به فایل
+    msg.file_url = None  
     db.commit()
     db.refresh(msg)
 
@@ -781,7 +763,6 @@ async def upload_file(
                 detail=f"پسوند {ext} مجاز نیست. پسوندهای مجاز: {', '.join(sorted(ALLOWED_UPLOAD_EXTENSIONS))}"
             )
 
-        # محدودیت حجم فایل
         file.file.seek(0, 2)
         size = file.file.tell()
         file.file.seek(0)
@@ -831,7 +812,6 @@ async def create_group(
         db.add(GroupMember(group_id=db_group.id, user_id=mid))
     db.commit()
 
-    # اطلاع به همه اعضا
     all_members = [current_user.id] + group.member_ids
     for member_id in all_members:
         await send_ws(member_id, {
@@ -1143,7 +1123,6 @@ async def websocket_endpoint(websocket: WebSocket, token: str = None):
         print(f"❌ WS error: {e}")
         traceback.print_exc()
         manager.disconnect(user_id, websocket=websocket)
-        # ✅ در مسیر خطای عمومی هم وضعیت آفلاین به‌روزرسانی شود
         await mark_offline()
     finally:
         db.close()
